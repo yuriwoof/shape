@@ -1,0 +1,90 @@
+# shape
+
+フリーハンドで描いた「箱と矢印」のラフを、Copilot エージェントが**編集可能なベクター図**に仕上げる GitHub Copilot App の Canvas 拡張です。
+
+清書後も手描きで追記 → 「✨ 仕上げる」で追記分だけ AI が反映、を繰り返して図を育てられます。
+
+## 特長
+
+- 依存パッケージなし・ビルド不要（Vanilla JS + SVG、Node 標準ライブラリのみ）
+- 手描き（未反映）ストロークは色付きで表示され、AI には追記分だけが伝わる
+- 図形・矢印はそのまま編集可能（選択・移動・リサイズ・ラベル編集・スタイル変更）
+- 矢印は要素にバインドされ、箱を動かすと追従
+- Undo / Redo、パン・ズーム、SVG / PNG / JSON / Mermaid エクスポート
+- 外部ネットワークや外部 LLM API は使わず、ユーザーの Copilot セッションのモデルを利用
+
+## インストール
+
+```powershell
+git clone https://github.com/yuriwoof/shape.git "$env:USERPROFILE\.copilot\extensions\shape"
+```
+
+Copilot App で拡張を再読み込みすると、Canvas 一覧に **shape** が表示されます。
+
+> 開発時はリポジトリを別の場所に置き、`~/.copilot/extensions/shape/extension.mjs` に
+> `import "file:///<リポジトリへの絶対パス>/extension.mjs";` だけを書いたシムを置く方法が便利です
+> （ジャンクション／シンボリックリンクは拡張として検出されません）。
+
+## 使い方
+
+1. チャットで「shape で図を描きたい」などと依頼するか、Canvas から **shape** を開きます。
+2. ペンで箱・矢印・文字をラフに描きます。
+3. 必要なら下部の入力欄に指示（例:「3 層構成にして DB を追加」「左→右レイアウト」）を書き、**✨ 仕上げる**（Ctrl+Enter）を押します。
+4. スケッチ画像と現在の図がチャットに送られ、エージェントが図形に置き換えます。
+5. 仕上がった図に手描きで追記し、再び仕上げることができます。手動で直接編集することもできます。
+
+### ショートカット
+
+| キー | 動作 |
+|---|---|
+| V / H / P / E | 選択 / パン / ペン / 消しゴム |
+| R / O / D / A / T | 四角 / 楕円 / ひし形 / 矢印 / テキスト |
+| Space + ドラッグ、中ボタン | パン |
+| Ctrl + ホイール | ズーム |
+| Shift + 1 | 全体を表示 |
+| Ctrl+Z / Ctrl+Shift+Z | 元に戻す / やり直す |
+| Delete | 選択要素を削除 |
+| ダブルクリック | ラベル編集 |
+
+## アーキテクチャ
+
+```mermaid
+flowchart LR
+    B["Browser (Canvas iframe)"] -- "POST /api/refine (PNG + 未反映ストローク)" --> E["extension.mjs (Node)"]
+    E -- "SSE /api/events (図の更新)" --> B
+    E -- "session.send (プロンプト + PNG)" --> A["Copilot エージェント"]
+    A -- "invoke_canvas_action (apply_changes …)" --> E
+```
+
+| パス | 役割 |
+|---|---|
+| `extension.mjs` | `createCanvas` による Canvas 登録、エージェント向け action、仕上げ依頼の送信 |
+| `lib/server.mjs` | 127.0.0.1 限定の HTTP サーバー（静的配信、`/api/*`、SSE）。トークン認証・Host 検証・CSP 付き |
+| `lib/store.mjs` | ドキュメントの永続化（`~/.copilot/shape-data/<documentId>.json`） |
+| `lib/prompt.mjs` | エージェント向け仕上げプロンプトの生成 |
+| `core/` | ブラウザとNode で共有するモデル（検証・差分適用・矢印バインド）、幾何計算、SVG 描画、Mermaid 変換 |
+| `public/` | フロントエンド（`index.html`, `app.js`, `style.css`） |
+
+### Canvas actions（エージェント向け）
+
+| action | 内容 |
+|---|---|
+| `get_diagram` | 要素と未反映ストローク（bbox・簡略化した点列付き）を返す |
+| `apply_changes` | add / update / delete の差分適用と、反映済みストロークの消去（`consumeStrokes`） |
+| `replace_diagram` | 図の全置換 |
+| `clear_sketch` | 未反映ストロークの削除 |
+| `export` | SVG / JSON / Mermaid を返す（任意でダウンロードフォルダーへ保存） |
+
+要素の種類は `rect | rounded | ellipse | diamond | cylinder | text | arrow` です。矢印は `from` / `to` で要素 id にバインドします。
+
+## 開発
+
+```powershell
+npm test   # node --test "test/*.test.mjs"
+```
+
+Node 20 以降を想定しています。
+
+## ライセンス
+
+[MIT](LICENSE)

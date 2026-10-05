@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>shape</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div id="app">
+    <svg id="board" tabindex="0" aria-label="Whiteboard">
+        <defs>
+            <pattern id="grid-small" width="20" height="20" patternUnits="userSpaceOnUse">
+                <circle cx="1" cy="1" r="1" fill="#d8dee4"></circle>
+            </pattern>
+        </defs>
+        <rect id="grid" width="100%" height="100%" fill="url(#grid-small)"></rect>
+        <g id="world">
+            <g id="scene"></g>
+            <g id="strokes"></g>
+            <g id="live"></g>
+            <g id="overlay"></g>
+        </g>
+    </svg>
+
+    <div id="toolbar" class="panel" role="toolbar" aria-label="Tools">
+        <button data-tool="select" title="選択 (V)">⬚<span>V</span></button>
+        <button data-tool="hand" title="パン (H / Space)">✋<span>H</span></button>
+        <div class="sep"></div>
+        <button data-tool="pen" title="手書き (P)">✏️<span>P</span></button>
+        <button data-tool="eraser" title="手書きを消す (E)">🧽<span>E</span></button>
+        <div class="sep"></div>
+        <button data-tool="rect" title="四角形 (R)">▭<span>R</span></button>
+        <button data-tool="ellipse" title="楕円 (O)">◯<span>O</span></button>
+        <button data-tool="diamond" title="ひし形 (D)">◇<span>D</span></button>
+        <button data-tool="arrow" title="矢印 (A)">➝<span>A</span></button>
+        <button data-tool="text" title="テキスト (T)">T<span>T</span></button>
+        <div id="pen-colors" class="swatches hidden"></div>
+    </div>
+
+    <div id="topbar" class="panel">
+        <input id="title" type="text" spellcheck="false" aria-label="タイトル" maxlength="120">
+        <div class="sep"></div>
+        <button id="undo" title="元に戻す (Ctrl+Z)">↶</button>
+        <button id="redo" title="やり直す (Ctrl+Shift+Z)">↷</button>
+        <button id="zoom" title="全体を表示 (Shift+1)">100%</button>
+        <div class="menu">
+            <button id="export-button" title="エクスポート">⇩ Export</button>
+            <div id="export-menu" class="panel menu-list hidden">
+                <button data-export="png">PNG</button>
+                <button data-export="svg">SVG</button>
+                <button data-export="mermaid">Mermaid</button>
+                <button data-export="json">JSON</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="props" class="panel hidden">
+        <label id="prop-type-row">形
+            <select id="prop-type">
+                <option value="rect">四角</option>
+                <option value="rounded">角丸</option>
+                <option value="ellipse">楕円</option>
+                <option value="diamond">ひし形</option>
+                <option value="cylinder">円柱 (DB)</option>
+                <option value="text">テキスト</option>
+                <option value="frame">グループ枠</option>
+            </select>
+        </label>
+        <div class="row"><span>線</span><div id="prop-stroke" class="swatches"></div></div>
+        <div class="row" id="prop-fill-row"><span>塗り</span><div id="prop-fill" class="swatches"></div></div>
+        <label class="check"><input id="prop-dashed" type="checkbox"> 破線</label>
+        <label id="prop-head-row">矢印
+            <select id="prop-head">
+                <option value="end">→</option>
+                <option value="both">↔</option>
+                <option value="start">←</option>
+                <option value="none">—</option>
+            </select>
+        </label>
+        <label id="prop-route-row">経路
+            <select id="prop-route">
+                <option value="straight">直線</option>
+                <option value="elbow">直角</option>
+            </select>
+        </label>
+        <button id="prop-delete" class="danger">削除</button>
+    </div>
+
+    <div id="refine" class="panel">
+        <input id="instruction" type="text" placeholder="AI への指示 (任意) 例: 3 層構成にして DB を追加" maxlength="2000">
+        <button id="refine-button" class="primary" title="手書きを AI で図に仕上げる (Ctrl+Enter)">✨ 仕上げる</button>
+        <span id="refine-status"></span>
+    </div>
+
+    <div id="empty" class="hidden">
+        <p>✏️ ペン (P) で箱と矢印をラフに描いて <b>✨ 仕上げる</b> を押すと、AI が編集可能な図に変換します。</p>
+        <p class="sub">R / O / D / A / T で直接図形も置けます。ダブルクリックでラベル編集。</p>
+    </div>
+
+    <textarea id="editor" class="hidden" spellcheck="false"></textarea>
+    <div id="toasts"></div>
+</div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

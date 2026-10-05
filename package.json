@@ -1,0 +1,12 @@
+{
+  "name": "shape",
+  "version": "0.1.0",
+  "description": "Freehand sketch to editable diagram canvas extension for GitHub Copilot App",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\""
+  }
+}
