@@ -142,6 +142,22 @@ test("refine prompt gates Azure behavior and documents the official catalog", ()
     assert.match(prompt, /PaaS service reached through a private endpoint is outside/);
 });
 
+test("refine prompt maps recognizable concepts to existing semantic shapes", () => {
+    const prompt = buildRefinePrompt({
+        instanceId: "i",
+        jobId: "j",
+        doc: base(),
+        strokes: [{ id: "s1", points: [[0, 0], [10, 10]], color: "#000000" }],
+        instruction: "ユーザーから VM に接続",
+    });
+    assert.match(prompt, /Meaning takes priority over copying the rough outline literally/);
+    assert.match(prompt, /person, stick figure, user, customer, or operator to an ellipse/);
+    assert.match(prompt, /VM, virtual machine, 仮想マシン, server, or compute host to a rounded node/);
+    assert.match(prompt, /Azure Virtual Machine because it is not in the official icon catalog/);
+    assert.match(prompt, /plain unlabeled box alone/);
+    assert.match(prompt, /fall back to its geometry/);
+});
+
 test("elbow connections avoid unrelated service nodes and remain in export bounds", () => {
     const doc = applyPatch(emptyDocument("routing"), {
         add: [

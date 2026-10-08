@@ -51,6 +51,8 @@ If you're working inside a Copilot session, you can ask the agent to install the
 
    ![A finished, editable Azure architecture diagram with VNet, App Service, Private Endpoint and SQL Database](docs/images/canvas-diagram-finished.jpg)
 
+Refine considers the meaning of recognizable symbols, nearby labels, connections, and the instruction before falling back to their raw outline. With the existing generic shape set, a user or stick figure becomes a labeled ellipse, a VM/server becomes a labeled rounded rectangle, and a database becomes a cylinder. Ambiguous unlabeled boxes remain generic rather than being assigned an invented technology. Azure Virtual Machine is currently represented as a labeled rounded rectangle because it is not in the bundled official icon catalog.
+
 ### Azure architecture diagrams
 
 When a sketch or instruction clearly calls for Azure resources (e.g. "draw Azure App Service connecting to Azure SQL Database"), the agent converts the matching services into editable elements with official Azure icons. Ambiguous diagrams (e.g. "Web → DB") are still finished as plain generic shapes. VNets and subnets are represented as labeled group frames; when a PaaS service is connected through a private endpoint, the service itself is placed outside the subnet frame.
