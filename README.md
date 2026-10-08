@@ -6,6 +6,12 @@ A Canvas extension for the GitHub Copilot App that turns a freehand "boxes and a
 
 Keep sketching on top of the finished diagram and press "✨ Finish" again — only the new strokes are sent to the AI, so the diagram grows incrementally.
 
+## Demo
+
+https://github.com/user-attachments/assets/fa7a0b5b-ad2b-45bd-a2c8-1afa117d753e
+
+The source file is also kept in this repository at [`docs/videos/shape-demo.mp4`](docs/videos/shape-demo.mp4).
+
 ## Features
 
 - No dependencies, no build step (vanilla JS + SVG, Node standard library only)

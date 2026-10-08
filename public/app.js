@@ -120,7 +120,7 @@ function send(patch) {
             if (result.warnings?.length) console.warn("shape patch warnings", result.warnings);
         })
         .catch((error) => {
-            toast(`保存に失敗しました: ${error.message}`, "error");
+            toast(`Failed to save: ${error.message}`, "error");
             return resync();
         });
 }
@@ -133,7 +133,7 @@ async function resync() {
         rebuild();
         render();
     } catch (error) {
-        toast(`再同期に失敗しました: ${error.message}`, "error");
+        toast(`Failed to resync: ${error.message}`, "error");
     }
 }
 
@@ -1134,7 +1134,7 @@ function rasterize(svg, width, height) {
         };
         img.onerror = () => {
             URL.revokeObjectURL(url);
-            reject(new Error("SVG の画像化に失敗しました"));
+            reject(new Error("Failed to rasterize SVG"));
         };
         img.src = url;
     });
@@ -1146,16 +1146,16 @@ async function exportAs(format) {
         await sendChain;
         const body = { documentId: DOC_ID, format };
         if (format === "png") {
-            if (!doc.elements.length && !doc.strokes.length) throw new Error("図が空です");
+            if (!doc.elements.length && !doc.strokes.length) throw new Error("The diagram is empty");
             const probe = renderSvg(doc, { includeStrokes: true });
             const scale = Math.min(2, 4000 / Math.max(probe.width, probe.height));
             const out = renderSvg(doc, { includeStrokes: true, scale });
             body.data = await rasterize(out.svg, out.width, out.height);
         }
         const { path } = await api("/api/export", { method: "POST", body: JSON.stringify(body) });
-        toast(`保存しました: ${path}`, "info", 5000);
+        toast(`Saved to: ${path}`, "info", 5000);
     } catch (error) {
-        toast(`エクスポートに失敗しました: ${error.message}`, "error");
+        toast(`Export failed: ${error.message}`, "error");
     }
 }
 
@@ -1166,11 +1166,11 @@ async function refine() {
     finishEditing();
     const instruction = instructionInput.value.trim();
     if (!doc.strokes.length && !instruction) {
-        toast("ペン (P) で手書きするか、AI への指示を入力してください。");
+        toast("Draw with the pen (P) or enter an instruction for the AI.");
         return;
     }
     refineButton.disabled = true;
-    setRefineStatus({ state: "refining", message: "送信中…" });
+    setRefineStatus({ state: "refining", message: "Sending..." });
     try {
         await sendChain;
         const options = { includeStrokes: true, showIds: true, muted: 0.55, grid: 100, padding: 40 };
@@ -1184,13 +1184,13 @@ async function refine() {
         });
         if (!result.ok) {
             setRefineStatus({ state: "idle" });
-            toast(result.message || "仕上げを開始できませんでした", "error");
+            toast(result.message || "Could not start refinement", "error");
             return;
         }
         instructionInput.value = "";
     } catch (error) {
         setRefineStatus({ state: "idle" });
-        toast(`仕上げに失敗しました: ${error.message}`, "error");
+        toast(`Refinement failed: ${error.message}`, "error");
     } finally {
         render();
     }
@@ -1199,7 +1199,7 @@ async function refine() {
 function setRefineStatus(status) {
     refineState = status;
     refineBar.classList.toggle("busy", status.state === "refining");
-    refineStatus.textContent = status.state === "refining" ? status.message || "AI が仕上げ中…" : "";
+    refineStatus.textContent = status.state === "refining" ? status.message || "AI is refining..." : "";
     refineButton.disabled = status.state === "refining";
     strokesLayer.classList.toggle("refining", status.state === "refining");
 }
@@ -1207,7 +1207,7 @@ function setRefineStatus(status) {
 function onStatus(status) {
     const previous = refineState.state;
     setRefineStatus(status);
-    if (status.state === "applied" && previous !== "applied") toast("✨ AI が図を更新しました");
+    if (status.state === "applied" && previous !== "applied") toast("✨ AI updated the diagram");
     if (status.state === "error" && previous !== "error" && status.message) toast(status.message, "error", 5000);
 }
 
@@ -1219,7 +1219,7 @@ setTool("select");
 applyViewTransform();
 render();
 if (!TOKEN) {
-    toast("トークンがありません。キャンバスを開き直してください。", "error", 10000);
+    toast("Missing access token. Reopen the canvas.", "error", 10000);
 } else {
     connect();
 }
