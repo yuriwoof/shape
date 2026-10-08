@@ -8,6 +8,12 @@
 
 なお、キャンバス UI の表示言語は英語です。AI への指示や図中のラベルは日本語のまま扱われ、手書き文字も元の言語で転記されます。
 
+## デモ
+
+https://github.com/user-attachments/assets/fa7a0b5b-ad2b-45bd-a2c8-1afa117d753e
+
+動画ファイルは [`docs/videos/shape-demo.mp4`](docs/videos/shape-demo.mp4) にも置いてあります。
+
 ## 特長
 
 - 依存パッケージなし・ビルド不要（Vanilla JS + SVG、Node 標準ライブラリのみ）
