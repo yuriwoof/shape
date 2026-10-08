@@ -1,5 +1,6 @@
 // Isomorphic SVG renderer. Produces strings so it works in Node (export) and the browser.
 import { arrowPoints, lookupFn, padBounds, polylineMidpoint, sceneBounds } from "./geometry.mjs";
+import { getAzureService } from "./azure-icons.mjs";
 
 export const FONT_FAMILY = `system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif`;
 
@@ -106,12 +107,26 @@ export function shapeMarkup(el) {
             return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${escapeXml(style.fill || "none")}" stroke="${style.stroke !== "none" && style.strokeWidth > 0 ? escapeXml(style.stroke) : "none"}" stroke-width="${style.strokeWidth}"${dashAttr(style)}/>`;
         case "frame":
             return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" ry="8"${paintAttrs(style)}/>`;
+        case "azure-service":
+            return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" ry="8"${paintAttrs(style)}/>`;
         default:
             return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" ry="2"${paintAttrs(style)}/>`;
     }
 }
 
 export function nodeLabelMarkup(el) {
+    if (el.type === "azure-service") {
+        const service = getAzureService(el.service);
+        if (!service) return "";
+        const size = Math.min(44, el.w * 0.4, el.h * 0.42);
+        const iconX = round(el.x + (el.w - size) / 2);
+        const iconY = round(el.y + 8);
+        const icon = `<svg x="${iconX}" y="${iconY}" width="${round(size)}" height="${round(size)}" viewBox="0 0 18 18" overflow="visible">${service.svg}</svg>`;
+        const label = el.label && el.label !== service.name ? `${service.name}\n${el.label}` : service.name;
+        const lines = wrapText(label, Math.max(el.w - 16, 24), el.style.fontSize);
+        const labelY = iconY + size + 8 + (lines.length * el.style.fontSize * 1.25) / 2;
+        return icon + textBlock(lines, el.x + el.w / 2, labelY, el.style);
+    }
     if (!el.label) return "";
     const style = el.style;
     if (el.type === "frame") {
@@ -143,9 +158,9 @@ function shorten(tip, from, by) {
     return { x: from.x + (tip.x - from.x) * t, y: from.y + (tip.y - from.y) * t };
 }
 
-export function arrowMarkup(el, lookup) {
+export function arrowMarkup(el, lookup, obstacles = []) {
     const style = el.style;
-    const points = arrowPoints(el, lookup).map((p) => ({ ...p }));
+    const points = arrowPoints(el, lookup, obstacles).map((p) => ({ ...p }));
     const size = 9 + style.strokeWidth * 2.5;
     const n = points.length;
     const heads = [];
@@ -197,8 +212,8 @@ export function strokeMarkup(stroke, attrs = "") {
     return `<path d="${strokePathData(stroke.points)}" fill="none" stroke="${escapeXml(stroke.color)}" stroke-width="${stroke.width}" stroke-linecap="round" stroke-linejoin="round"${attrs}/>`;
 }
 
-export function elementMarkup(el, lookup) {
-    if (el.type === "arrow") return arrowMarkup(el, lookup);
+export function elementMarkup(el, lookup, obstacles) {
+    if (el.type === "arrow") return arrowMarkup(el, lookup, obstacles);
     return shapeMarkup(el) + nodeLabelMarkup(el);
 }
 
@@ -216,11 +231,11 @@ export function orderedElements(elements) {
         .map(({ el }) => el);
 }
 
-function idTag(el, lookup) {
+function idTag(el, lookup, obstacles) {
     let x;
     let y;
     if (el.type === "arrow") {
-        const mid = polylineMidpoint(arrowPoints(el, lookup));
+        const mid = polylineMidpoint(arrowPoints(el, lookup, obstacles));
         x = mid.x + 6;
         y = mid.y - 10;
     } else {
@@ -240,11 +255,11 @@ export function sceneMarkup(doc, options = {}) {
     let out = `<g class="elements"${muted}>`;
     for (const el of orderedElements(doc.elements)) {
         const data = options.dataAttributes ? ` data-id="${escapeXml(el.id)}"` : "";
-        out += `<g${data}>${elementMarkup(el, lookup)}</g>`;
+        out += `<g${data}>${elementMarkup(el, lookup, doc.elements)}</g>`;
     }
     out += "</g>";
     if (options.showIds) {
-        out += `<g class="ids">${doc.elements.map((el) => idTag(el, lookup)).join("")}</g>`;
+        out += `<g class="ids">${doc.elements.map((el) => idTag(el, lookup, doc.elements)).join("")}</g>`;
     }
     if (options.includeStrokes && doc.strokes.length) {
         out += `<g class="strokes">${doc.strokes.map((stroke) => strokeMarkup(stroke)).join("")}</g>`;

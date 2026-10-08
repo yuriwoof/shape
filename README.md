@@ -12,6 +12,7 @@
 - 矢印は要素にバインドされ、箱を動かすと追従
 - Undo / Redo、パン・ズーム、SVG / PNG / JSON / Mermaid エクスポート
 - 外部ネットワークや外部 LLM API は使わず、ユーザーの Copilot セッションのモデルを利用
+- Azure と明確に分かるスケッチや指示では、公式 Azure アイコン、サービス名、ネットワーク境界、方向付きの接続を使って仕上げる
 
 ## インストール
 
@@ -32,6 +33,14 @@ Copilot App で拡張を再読み込みすると、Canvas 一覧に **shape** �
 3. 必要なら下部の入力欄に指示（例:「3 層構成にして DB を追加」「左→右レイアウト」）を書き、**✨ 仕上げる**（Ctrl+Enter）を押します。
 4. スケッチ画像と現在の図がチャットに送られ、エージェントが図形に置き換えます。
 5. 仕上がった図に手描きで追記し、再び仕上げることができます。手動で直接編集することもできます。
+
+### Azure アーキテクチャ図
+
+「Azure App Service から Azure SQL Database に接続する構成を描いて」など、Azure サービスや Azure 構成が明確な指示・スケッチでは、対応サービスを公式アイコン付きの編集可能な要素に変換します。「Web → DB」のように曖昧な図は従来の汎用図形で仕上げます。VNet やサブネットなどはラベル付きのグループ枠で表し、PaaS サービスをプライベート エンドポイント経由で接続する場合、そのサービス自体をサブネット内には置きません。
+
+対応アイコン: Azure App Service、Azure Application Gateway、Azure Web Application Firewall policy、Azure Virtual Network、Azure Private Endpoint、Azure SQL Database、Azure Key Vault、Azure Storage account、Azure Front Door、Azure Monitor。未対応・特定できないサービスは、別のサービスのアイコンへ推測で置き換えず、名前を表示した汎用図形にします。要素を選択してプロパティの「形」を「Azure サービス」に変更するか、サービスのドロップダウンから別のサービスを選ぶこともできます。アイコンそのものの縦横比・色は編集できません。
+
+SVG / PNG は公式アイコンを含めて保存され、JSON はサービス ID を含む編集可能な要素情報を保存します。Mermaid はアイコンを表現できないため、正式名称付きの汎用ノードで出力します。既存の図には変更を加えません。
 
 ### ショートカット
 
@@ -75,7 +84,9 @@ flowchart LR
 | `clear_sketch` | 未反映ストロークの削除 |
 | `export` | SVG / JSON / Mermaid を返す（任意でダウンロードフォルダーへ保存） |
 
-要素の種類は `rect | rounded | ellipse | diamond | cylinder | text | arrow` です。矢印は `from` / `to` で要素 id にバインドします。
+要素の種類は `rect | rounded | ellipse | diamond | cylinder | text | frame | azure-service | arrow` です。`azure-service` には対応する `service` ID を指定します。矢印は `from` / `to` で要素 id にバインドします。
+
+公式アイコンは [Azure Architecture Center の配布物](https://learn.microsoft.com/azure/architecture/icons/) から選定し、`core/azure-icons.mjs` に収録しています。このファイル中のアイコンは **Microsoft の利用条件**（アーキテクチャ図、研修資料、ドキュメントでの利用に限定）に従い、リポジトリの MIT ライセンスの対象ではありません。アイコンを切り抜く・反転する・回転する・変形する用途や、自社製品のアイコンとしての利用は避けてください。元の公式 ZIP からカタログを更新するときは `python scripts/update-azure-icons.py <Azure_Public_Service_Icons_V24.zip>` を実行します。実行時のネットワーク接続は不要です。
 
 ## 開発
 

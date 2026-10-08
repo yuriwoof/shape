@@ -1,6 +1,7 @@
-import { arrowPoints, distanceToPolyline, elementBounds, lookupFn, rectContains, rectsIntersect, sceneBounds, strokeBounds } from "/core/geometry.mjs";
+import { arrowPoints, distanceToPolyline, elementBounds, lookupFn, polylineMidpoint, rectContains, rectsIntersect, sceneBounds, strokeBounds } from "/core/geometry.mjs";
 import { applyPatch, DEFAULT_SIZE, DEFAULT_STYLE, diff, emptyDocument, isEmptyPatch, makeId } from "/core/model.mjs";
 import { orderedElements, renderSvg, sceneMarkup, strokeMarkup, strokePathData, textWidth, wrapText } from "/core/render.mjs";
+import { AZURE_SERVICES } from "/core/azure-icons.mjs";
 
 // ---------- Constants ----------
 
@@ -261,14 +262,14 @@ function renderOverlay() {
     const hs = 8 / view.zoom;
     const pad = 4 / view.zoom;
     if (hoverBind && map.has(hoverBind)) {
-        const b = elementBounds(map.get(hoverBind), lookup);
+        const b = elementBounds(map.get(hoverBind), lookup, d.elements);
         overlayLayer.appendChild(svgEl("rect", { class: "bind-hint", x: b.x - pad, y: b.y - pad, width: b.w + pad * 2, height: b.h + pad * 2, rx: 6 / view.zoom }));
     }
     for (const id of selection) {
         const el = map.get(id);
         if (!el) continue;
         if (el.type === "arrow") {
-            const points = arrowPoints(el, lookup);
+            const points = arrowPoints(el, lookup, d.elements);
             overlayLayer.appendChild(
                 svgEl("polyline", { class: "sel-box", points: points.map((p) => `${p.x},${p.y}`).join(" "), "stroke-width": 1, "stroke-dasharray": "4 3" }),
             );
@@ -316,7 +317,7 @@ function hitElement(p, { exclude, nodesOnly = false } = {}) {
         if (el.id === exclude) continue;
         if (el.type === "arrow") {
             if (nodesOnly) continue;
-            if (distanceToPolyline(p, arrowPoints(el, lookup)) <= tol + el.style.strokeWidth) return el;
+            if (distanceToPolyline(p, arrowPoints(el, lookup, d.elements)) <= tol + el.style.strokeWidth) return el;
             continue;
         }
         const inside = p.x >= el.x - tol && p.x <= el.x + el.w + tol && p.y >= el.y - tol && p.y <= el.y + el.h + tol;
@@ -343,7 +344,7 @@ function hitHandle(p) {
     if (!el) return null;
     const tol = 9 / view.zoom;
     if (el.type === "arrow") {
-        const points = arrowPoints(el, lookupFn(map));
+        const points = arrowPoints(el, lookupFn(map), d.elements);
         if (Math.hypot(p.x - points[0].x, p.y - points[0].y) <= tol) return { el, handle: "start" };
         const last = points[points.length - 1];
         if (Math.hypot(p.x - last.x, p.y - last.y) <= tol) return { el, handle: "end" };
@@ -542,7 +543,7 @@ board.addEventListener("pointermove", (e) => {
             const lookup = lookupFn(doc.elements);
             selection = new Set(it.additive);
             for (const el of doc.elements) {
-                const b = elementBounds(el, lookup);
+                const b = elementBounds(el, lookup, doc.elements);
                 if (b && rectContains(m, b)) selection.add(el.id);
             }
             render();
@@ -820,10 +821,8 @@ function positionEditor() {
         fontSize = DEFAULT_STYLE.text.fontSize;
         box = { x: editing.x - 80, y: editing.y - 20, w: 160, h: 40 };
     } else if (el.type === "arrow") {
-        const points = arrowPoints(el, lookupFn(doc.elements));
-        const a = points[Math.floor((points.length - 1) / 2)];
-        const b = points[Math.ceil((points.length - 1) / 2)];
-        const mid = points.length === 2 ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : a;
+        const points = arrowPoints(el, lookupFn(doc.elements), doc.elements);
+        const mid = polylineMidpoint(points);
         fontSize = el.style.fontSize;
         box = { x: mid.x - 90, y: mid.y - 20, w: 180, h: 40 };
     } else {
@@ -1030,11 +1029,13 @@ function updateProps() {
     const nodes = els.filter((el) => el.type !== "arrow");
     const arrows = els.filter((el) => el.type === "arrow");
     $("prop-type-row").classList.toggle("hidden", !nodes.length || arrows.length > 0);
+    $("prop-service-row").classList.toggle("hidden", nodes.length !== 1 || nodes[0].type !== "azure-service" || arrows.length > 0);
     $("prop-fill-row").classList.toggle("hidden", !nodes.length);
     $("prop-head-row").classList.toggle("hidden", !arrows.length);
     $("prop-route-row").classList.toggle("hidden", !arrows.length);
     const first = els[0];
     if (nodes.length) $("prop-type").value = nodes[0].type;
+    if (nodes.length === 1 && nodes[0].type === "azure-service") $("prop-service").value = nodes[0].service;
     if (arrows.length) {
         $("prop-head").value = arrows[0].style.head;
         $("prop-route").value = arrows[0].style.route;
@@ -1047,6 +1048,20 @@ function updateProps() {
 buildSwatches($("prop-stroke"), STROKE_COLORS, (color) => {
     const update = selectedElements().map((el) => ({ id: el.id, style: el.type === "text" ? { text: color } : { stroke: color, ...(el.type === "frame" ? {} : { text: color }) } }));
     if (update.length) commit({ update });
+});
+for (const service of AZURE_SERVICES) {
+    const option = document.createElement("option");
+    option.value = service.id;
+    option.textContent = service.name;
+    $("prop-service").append(option);
+}
+$("prop-service").addEventListener("change", (e) => {
+    const el = selectedElements()[0];
+    if (el?.type === "azure-service") {
+        const currentName = AZURE_SERVICES.find((service) => service.id === el.service)?.name;
+        const nextName = AZURE_SERVICES.find((service) => service.id === e.target.value)?.name;
+        if (nextName) commit({ update: [{ id: el.id, service: e.target.value, label: el.label === currentName ? nextName : el.label }] });
+    }
 });
 buildSwatches($("prop-fill"), FILL_COLORS, (color) => updateSelectedStyle({ fill: color }));
 buildSwatches($("pen-colors"), PEN_COLORS, (color) => {
@@ -1061,13 +1076,14 @@ $("prop-route").addEventListener("change", (e) => updateSelectedStyle({ route: e
 $("prop-delete").addEventListener("click", deleteSelection);
 $("prop-type").addEventListener("change", (e) => {
     const type = e.target.value;
-    const special = type === "text" ? DEFAULT_STYLE.text : type === "frame" ? DEFAULT_STYLE.frame : null;
+    const special = type === "text" ? DEFAULT_STYLE.text : type === "frame" ? DEFAULT_STYLE.frame : type === "azure-service" ? DEFAULT_STYLE["azure-service"] : null;
     const update = selectedElements()
         .filter((el) => el.type !== "arrow")
         .map((el) => {
-            const fromSpecial = el.type === "text" || el.type === "frame";
+            const fromSpecial = el.type === "text" || el.type === "frame" || el.type === "azure-service";
             const style = special ? { ...special } : fromSpecial ? { ...DEFAULT_STYLE.node } : undefined;
-            return style ? { id: el.id, type, style } : { id: el.id, type };
+            const service = type === "azure-service" ? { service: el.service || AZURE_SERVICES[0].id, label: el.label || AZURE_SERVICES[0].name } : {};
+            return style ? { id: el.id, type, style, ...service } : { id: el.id, type, ...service };
         });
     if (update.length) commit({ update });
 });

@@ -51,7 +51,7 @@ function endpointRefs(arrow, find) {
 }
 
 // Resolved polyline of an arrow (bound endpoints follow their nodes).
-export function arrowPoints(arrow, lookup) {
+export function arrowPoints(arrow, lookup, obstacles = []) {
     const find = lookupFn(lookup);
     const { from, to, startRef, endRef } = endpointRefs(arrow, find);
     if (arrow.style?.route === "elbow") {
@@ -73,11 +73,43 @@ export function arrowPoints(arrow, lookup) {
             const my = (start.y + end.y) / 2;
             points = [start, { x: start.x, y: my }, { x: end.x, y: my }, end];
         }
-        return dedupe(points);
+        return avoidNodes(dedupe(points), arrow, obstacles);
     }
     const start = from ? boundaryPoint(from, endRef.x, endRef.y) : startRef;
     const end = to ? boundaryPoint(to, startRef.x, startRef.y) : endRef;
     return [start, end];
+}
+
+function avoidNodes(points, arrow, nodes) {
+    const a = points[0];
+    const b = points[points.length - 1];
+    const boxes = nodes
+        .filter((node) => node.type !== "arrow" && node.type !== "frame" && node.id !== arrow.from && node.id !== arrow.to)
+        .filter((node) => node.x < Math.max(a.x, b.x) + 300 && node.x + node.w > Math.min(a.x, b.x) - 300 &&
+            node.y < Math.max(a.y, b.y) + 300 && node.y + node.h > Math.min(a.y, b.y) - 300)
+        .map((node) => ({ x: node.x - 10, y: node.y - 10, right: node.x + node.w + 10, bottom: node.y + node.h + 10 }));
+    if (!boxes.length) return points;
+    const clear = (path) => path.every((p, index) => !index || boxes.every((box) => {
+        const prev = path[index - 1];
+        if (prev.x === p.x) return prev.x <= box.x || prev.x >= box.right || Math.max(prev.y, p.y) <= box.y || Math.min(prev.y, p.y) >= box.bottom;
+        if (prev.y === p.y) return prev.y <= box.y || prev.y >= box.bottom || Math.max(prev.x, p.x) <= box.x || Math.min(prev.x, p.x) >= box.right;
+        return false;
+    }));
+    if (clear(points)) return points;
+    const horizontal = Math.abs(b.x - a.x) >= Math.abs(b.y - a.y);
+    const sign = Math.sign(horizontal ? b.x - a.x : b.y - a.y) || 1;
+    const start = horizontal ? a.x + 20 * sign : a.y + 20 * sign;
+    const end = horizontal ? b.x - 20 * sign : b.y - 20 * sign;
+    const corridors = horizontal
+        ? [a.y, b.y, ...boxes.flatMap((box) => [box.y - 12, box.bottom + 12])]
+        : [a.x, b.x, ...boxes.flatMap((box) => [box.x - 12, box.right + 12])];
+    const candidates = corridors.map((corridor) => dedupe(horizontal
+        ? [a, { x: start, y: a.y }, { x: start, y: corridor }, { x: end, y: corridor }, { x: end, y: b.y }, b]
+        : [a, { x: a.x, y: start }, { x: corridor, y: start }, { x: corridor, y: end }, { x: b.x, y: end }, b]));
+    const options = candidates.filter(clear);
+    if (!options.length) return points;
+    options.sort((left, right) => polylineLength(left) + left.length * 20 - polylineLength(right) - right.length * 20);
+    return options[0];
 }
 
 function dedupe(points) {
@@ -177,8 +209,8 @@ export function padBounds(b, pad) {
     return { x: b.x - pad, y: b.y - pad, w: b.w + pad * 2, h: b.h + pad * 2 };
 }
 
-export function elementBounds(element, lookup) {
-    if (element.type === "arrow") return boundsOfPoints(arrowPoints(element, lookup));
+export function elementBounds(element, lookup, obstacles) {
+    if (element.type === "arrow") return boundsOfPoints(arrowPoints(element, lookup, obstacles));
     return { x: element.x, y: element.y, w: element.w, h: element.h };
 }
 
@@ -189,7 +221,7 @@ export function strokeBounds(stroke) {
 
 export function sceneBounds(doc, { includeStrokes = true } = {}) {
     const lookup = lookupFn(doc.elements);
-    const list = doc.elements.map((element) => elementBounds(element, lookup));
+    const list = doc.elements.map((element) => elementBounds(element, lookup, doc.elements));
     if (includeStrokes) list.push(...doc.strokes.map(strokeBounds));
     return unionBounds(list);
 }

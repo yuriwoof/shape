@@ -1,5 +1,6 @@
 // Mermaid flowchart export.
 import { center, isNode, rectContains } from "./geometry.mjs";
+import { getAzureService } from "./azure-icons.mjs";
 
 function mermaidLabel(text) {
     return `"${String(text ?? "")
@@ -8,7 +9,8 @@ function mermaidLabel(text) {
 }
 
 function nodeShape(el, id) {
-    const label = mermaidLabel(el.label || el.id);
+    const serviceName = el.type === "azure-service" ? getAzureService(el.service)?.name : null;
+    const label = mermaidLabel(serviceName && el.label && el.label !== serviceName ? `${serviceName}\n${el.label}` : serviceName || el.label || el.id);
     switch (el.type) {
         case "rounded":
             return `${id}(${label})`;
