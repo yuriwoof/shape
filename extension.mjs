@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CanvasError, createCanvas, joinSession } from "@github/copilot-sdk/extension";
 import { boundsOfPoints, simplifyPoints, strokeBounds } from "./core/geometry.mjs";
+import { AZURE_SERVICE_IDS } from "./core/azure-icons.mjs";
 import { applyPatch, ELEMENT_TYPES } from "./core/model.mjs";
 import { buildDisplayPrompt, buildRefinePrompt } from "./lib/prompt.mjs";
 import { exportContent, slugify, startServer } from "./lib/server.mjs";
@@ -143,10 +144,11 @@ async function finishJobs(reason) {
 const elementSchema = {
     type: "object",
     description:
-        "Diagram element. Nodes: {id, type, x, y, w, h, label, style?}. Arrows: {id, type:'arrow', from, to, label?, style?{head, route, dashed}, x1?, y1?, x2?, y2?}.",
+        "Diagram element. Nodes: {id, type, x, y, w, h, label, style?}; azure-service nodes also need a catalog service ID. Arrows: {id, type:'arrow', from, to, label?, style?{head, route, dashed}, x1?, y1?, x2?, y2?}.",
     properties: {
         id: { type: "string" },
         type: { type: "string", enum: ELEMENT_TYPES },
+        service: { type: "string", enum: AZURE_SERVICE_IDS, description: "Official Azure service icon ID (only for azure-service nodes)." },
         x: { type: "number" },
         y: { type: "number" },
         w: { type: "number" },

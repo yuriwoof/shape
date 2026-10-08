@@ -77,6 +77,9 @@ test("serves the UI shell and core modules with CSP", async () => {
     const core = await call("GET", "/core/model.mjs");
     assert.equal(core.status, 200);
     assert.match(core.headers["content-type"], /javascript/);
+    const icons = await call("GET", "/core/azure-icons.mjs");
+    assert.equal(icons.status, 200);
+    assert.match(icons.text, /Azure App Service/);
     assert.equal((await call("GET", "/core/../lib/server.mjs")).status, 404);
 });
 

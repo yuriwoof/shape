@@ -1,7 +1,8 @@
 // Isomorphic document model: schema normalization, patches and diffs.
 import { arrowPoints, lookupFn } from "./geometry.mjs";
+import { getAzureService } from "./azure-icons.mjs";
 
-export const NODE_TYPES = Object.freeze(["rect", "rounded", "ellipse", "diamond", "cylinder", "text", "frame"]);
+export const NODE_TYPES = Object.freeze(["rect", "rounded", "ellipse", "diamond", "cylinder", "text", "frame", "azure-service"]);
 export const ELEMENT_TYPES = Object.freeze([...NODE_TYPES, "arrow"]);
 export const ARROW_HEADS = Object.freeze(["end", "start", "both", "none"]);
 export const ARROW_ROUTES = Object.freeze(["straight", "elbow"]);
@@ -45,6 +46,7 @@ export const DEFAULT_STYLE = Object.freeze({
     node: Object.freeze({ stroke: "#1f2328", fill: "#ffffff", text: "#1f2328", strokeWidth: 2, dashed: false, fontSize: 16 }),
     text: Object.freeze({ stroke: "none", fill: "none", text: "#1f2328", strokeWidth: 0, dashed: false, fontSize: 18 }),
     frame: Object.freeze({ stroke: "#8c959f", fill: "none", text: "#57606a", strokeWidth: 1.5, dashed: true, fontSize: 14 }),
+    "azure-service": Object.freeze({ stroke: "#b6cce7", fill: "#ffffff", text: "#1f2328", strokeWidth: 1, dashed: false, fontSize: 14 }),
     arrow: Object.freeze({ stroke: "#1f2328", text: "#1f2328", strokeWidth: 2, dashed: false, fontSize: 14, head: "end", route: "straight" }),
 });
 
@@ -56,6 +58,7 @@ export const DEFAULT_SIZE = Object.freeze({
     cylinder: [120, 96],
     text: [160, 40],
     frame: [400, 300],
+    "azure-service": [210, 124],
 });
 
 const STYLE_KEYS = ["stroke", "fill", "text", "textColor", "color", "strokeWidth", "dashed", "fontSize", "head", "route"];
@@ -70,6 +73,7 @@ export function styleKind(type) {
     if (type === "arrow") return "arrow";
     if (type === "text") return "text";
     if (type === "frame") return "frame";
+    if (type === "azure-service") return "azure-service";
     return "node";
 }
 
@@ -171,13 +175,21 @@ export function normalizeElement(rawInput, warnings = [], taken = undefined) {
         warnings.push("Ignored an element that is not an object.");
         return null;
     }
-    const type = normalizeType(raw.type ?? "rect");
+    let type = normalizeType(raw.type ?? "rect");
     if (!type) {
         warnings.push(`Ignored element "${raw.id ?? "?"}": unknown type "${raw.type}". Use one of ${ELEMENT_TYPES.join(", ")}.`);
         return null;
     }
     const id = sanitizeId(raw.id) || makeId(type === "arrow" ? "arrow" : "node", taken);
-    const label = raw.label === undefined || raw.label === null ? "" : String(raw.label).slice(0, LIMITS.label);
+    const service = type === "azure-service" ? getAzureService(raw.service) : null;
+    const missingService = type === "azure-service" && !service;
+    if (missingService) {
+        warnings.push(`azure-service "${raw.id ?? "?"}": unknown service "${raw.service ?? ""}"; rendered as a generic node.`);
+        type = "rect";
+    }
+    const label = raw.label === undefined || raw.label === null
+        ? (service?.name || (missingService ? String(raw.service || "Unknown Azure service") : "")).slice(0, LIMITS.label)
+        : String(raw.label).slice(0, LIMITS.label);
     const style = normalizeStyle(type, raw.style);
     if (type === "arrow") {
         return {
@@ -197,6 +209,7 @@ export function normalizeElement(rawInput, warnings = [], taken = undefined) {
     return {
         id,
         type,
+        ...(service ? { service: service.id } : {}),
         x: num(raw.x, 0),
         y: num(raw.y, 0),
         w: clamp(num(raw.w, dw), 8, 20000),

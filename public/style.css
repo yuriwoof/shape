@@ -124,6 +124,7 @@ html, body, #app {
 #props label, #props .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); }
 #props label.check { justify-content: flex-start; color: var(--fg); }
 #props select { font: inherit; padding: 2px 4px; border-radius: 6px; border: 1px solid var(--border); background: #fff; }
+#prop-service { max-width: 130px; }
 
 .swatches { display: flex; flex-wrap: wrap; gap: 3px; }
 .swatches button {
