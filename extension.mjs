@@ -86,10 +86,10 @@ async function handleRefine({ documentId, instanceId, image, frame, instruction 
     const doc = await store.get(documentId);
     const strokes = doc.strokes;
     if (!strokes.length && !instruction.trim()) {
-        return { ok: false, message: "手書きのスケッチか指示を入力してください。" };
+        return { ok: false, message: "Draw a sketch or enter an instruction." };
     }
     if (activeJob(documentId)) {
-        return { ok: false, message: "AI が仕上げ中です。完了までお待ちください。" };
+        return { ok: false, message: "AI is already refining. Wait for it to finish." };
     }
     const job = {
         id: `refine-${randomUUID().slice(0, 8)}`,
@@ -100,7 +100,7 @@ async function handleRefine({ documentId, instanceId, image, frame, instruction 
         applied: false,
     };
     jobs.set(documentId, job);
-    server.setStatus(documentId, { state: "refining", message: "AI が仕上げ中…", jobId: job.id });
+    server.setStatus(documentId, { state: "refining", message: "AI is refining...", jobId: job.id });
 
     const prompt = buildRefinePrompt({ instanceId: resolvedInstance, jobId: job.id, doc, strokes, frame, instruction });
     const attachments = [];
@@ -117,7 +117,7 @@ async function handleRefine({ documentId, instanceId, image, frame, instruction 
         });
     } catch (error) {
         jobs.delete(documentId);
-        server.setStatus(documentId, { state: "error", message: `送信に失敗しました: ${error.message}` });
+        server.setStatus(documentId, { state: "error", message: `Failed to send: ${error.message}` });
         throw error;
     }
     return { ok: true, jobId: job.id };
@@ -133,7 +133,7 @@ async function finishJobs(reason) {
         } else {
             server.setStatus(documentId, {
                 state: "error",
-                message: reason === "aborted" ? "AI の処理が中断されました。" : "AI から変更が届きませんでした。もう一度お試しください。",
+                message: reason === "aborted" ? "AI processing was interrupted." : "No changes were received from the AI. Try again.",
             });
         }
     }
@@ -208,7 +208,7 @@ async function markApplied(documentId, job) {
     if (!job) return;
     job.applied = true;
     const server = await getServer();
-    server.setStatus(documentId, { state: "applied", message: "AI が図を更新しました", jobId: job.id });
+    server.setStatus(documentId, { state: "applied", message: "AI updated the diagram", jobId: job.id });
 }
 
 function resultFor(result, extra = {}) {

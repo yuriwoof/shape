@@ -73,6 +73,8 @@ test("serves the UI shell and core modules with CSP", async () => {
     const page = await call("GET", "/");
     assert.equal(page.status, 200);
     assert.match(page.text, /id="board"/);
+    assert.match(page.text, /<html lang="en">/);
+    assert.match(page.text, />✨ Finish</);
     assert.match(page.headers["content-security-policy"], /script-src 'self'/);
     const core = await call("GET", "/core/model.mjs");
     assert.equal(core.status, 200);
