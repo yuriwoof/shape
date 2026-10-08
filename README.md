@@ -1,101 +1,118 @@
 # shape
 
-フリーハンドで描いた「箱と矢印」のラフを、Copilot エージェントが**編集可能なベクター図**に仕上げる GitHub Copilot App の Canvas 拡張です。
+**[English](README.md) | [日本語](README.ja.md)**
 
-清書後も手描きで追記 → 「✨ 仕上げる」で追記分だけ AI が反映、を繰り返して図を育てられます。
+A Canvas extension for the GitHub Copilot App that turns a freehand "boxes and arrows" sketch into a **fully editable vector diagram**, drawn by a Copilot agent.
 
-## 特長
+Keep sketching on top of the finished diagram and press "✨ Finish" again — only the new strokes are sent to the AI, so the diagram grows incrementally.
 
-- 依存パッケージなし・ビルド不要（Vanilla JS + SVG、Node 標準ライブラリのみ）
-- 手描き（未反映）ストロークは色付きで表示され、AI には追記分だけが伝わる
-- 図形・矢印はそのまま編集可能（選択・移動・リサイズ・ラベル編集・スタイル変更）
-- 矢印は要素にバインドされ、箱を動かすと追従
-- Undo / Redo、パン・ズーム、SVG / PNG / JSON / Mermaid エクスポート
-- 外部ネットワークや外部 LLM API は使わず、ユーザーの Copilot セッションのモデルを利用
-- Azure と明確に分かるスケッチや指示では、公式 Azure アイコン、サービス名、ネットワーク境界、方向付きの接続を使って仕上げる
+## Features
 
-## インストール
+- No dependencies, no build step (vanilla JS + SVG, Node standard library only)
+- Unfinished freehand strokes are shown in color; only the new strokes are sent to the AI on each refine
+- Shapes and arrows stay fully editable (select, move, resize, edit labels, restyle)
+- Arrows are bound to the elements they connect, and follow when a box is moved
+- Undo / redo, pan & zoom, export to SVG / PNG / JSON / Mermaid
+- No external network calls or external LLM APIs — it uses the model already powering your Copilot session
+- When a sketch or instruction clearly refers to Azure, the agent finishes it with official Azure icons, correct service names, network boundaries, and directional connections
+
+## Installation
+
+### Option A: Install from this repository (recommended)
 
 ```powershell
 git clone https://github.com/yuriwoof/shape.git "$env:USERPROFILE\.copilot\extensions\shape"
 ```
 
-Copilot App で拡張を再読み込みすると、Canvas 一覧に **shape** が表示されます。
+Reload extensions in the Copilot App and **shape** will appear in the Canvas list.
 
-> 開発時はリポジトリを別の場所に置き、`~/.copilot/extensions/shape/extension.mjs` に
-> `import "file:///<リポジトリへの絶対パス>/extension.mjs";` だけを書いたシムを置く方法が便利です
-> （ジャンクション／シンボリックリンクは拡張として検出されません）。
+> For active development, keep the repository checked out elsewhere and put a one-line shim at
+> `~/.copilot/extensions/shape/extension.mjs`:
+> `import "file:///<absolute path to repo>/extension.mjs";`
+> (junctions/symlinks are not detected as extensions by the Copilot App).
 
-## 使い方
+### Option B: Install with the `install_extension` tool
 
-1. チャットで「shape で図を描きたい」などと依頼するか、Canvas から **shape** を開きます。
-2. ペンで箱・矢印・文字をラフに描きます。
-3. 必要なら下部の入力欄に指示（例:「3 層構成にして DB を追加」「左→右レイアウト」）を書き、**✨ 仕上げる**（Ctrl+Enter）を押します。
-4. スケッチ画像と現在の図がチャットに送られ、エージェントが図形に置き換えます。
-5. 仕上がった図に手描きで追記し、再び仕上げることができます。手動で直接編集することもできます。
+If you're working inside a Copilot session, you can ask the agent to install the extension directly from this GitHub repository folder (or from a gist produced by `share_extension`) — no manual `git clone` required. The agent calls the `install_extension` tool with this repo's URL, and the Copilot App automatically reloads extensions once the files are written.
 
-### Azure アーキテクチャ図
+## Usage
 
-「Azure App Service から Azure SQL Database に接続する構成を描いて」など、Azure サービスや Azure 構成が明確な指示・スケッチでは、対応サービスを公式アイコン付きの編集可能な要素に変換します。「Web → DB」のように曖昧な図は従来の汎用図形で仕上げます。VNet やサブネットなどはラベル付きのグループ枠で表し、PaaS サービスをプライベート エンドポイント経由で接続する場合、そのサービス自体をサブネット内には置きません。
+1. Open **shape** from the Canvas list (or ask in chat, e.g. "let's sketch a diagram with shape").
 
-対応アイコン: Azure App Service、Azure Application Gateway、Azure Web Application Firewall policy、Azure Virtual Network、Azure Private Endpoint、Azure SQL Database、Azure Key Vault、Azure Storage account、Azure Front Door、Azure Monitor。未対応・特定できないサービスは、別のサービスのアイコンへ推測で置き換えず、名前を表示した汎用図形にします。要素を選択してプロパティの「形」を「Azure サービス」に変更するか、サービスのドロップダウンから別のサービスを選ぶこともできます。アイコンそのものの縦横比・色は編集できません。
+   ![Empty canvas showing the toolbar and empty-state hint](docs/images/canvas-empty.jpg)
 
-SVG / PNG は公式アイコンを含めて保存され、JSON はサービス ID を含む編集可能な要素情報を保存します。Mermaid はアイコンを表現できないため、正式名称付きの汎用ノードで出力します。既存の図には変更を加えません。
+2. Pick the pen tool and rough out boxes, arrows, and labels freehand.
 
-### ショートカット
+   ![A freehand sketch stroke drawn with the pen tool](docs/images/canvas-sketch.jpg)
 
-| キー | 動作 |
+3. Optionally type an instruction in the bottom bar (e.g. "make it a 3-tier layout and add a DB", "left-to-right layout"), then press **✨ Finish** (Ctrl+Enter).
+4. The sketch image and the current diagram are sent to the agent, which replaces your rough strokes with clean, editable shapes.
+5. Keep sketching on top of the finished diagram and refine again whenever you like. You can also edit the shapes directly by hand (select, drag, resize, double-click to edit a label).
+
+   ![A finished, editable Azure architecture diagram with VNet, App Service, Private Endpoint and SQL Database](docs/images/canvas-diagram-finished.jpg)
+
+### Azure architecture diagrams
+
+When a sketch or instruction clearly calls for Azure resources (e.g. "draw Azure App Service connecting to Azure SQL Database"), the agent converts the matching services into editable elements with official Azure icons. Ambiguous diagrams (e.g. "Web → DB") are still finished as plain generic shapes. VNets and subnets are represented as labeled group frames; when a PaaS service is connected through a private endpoint, the service itself is placed outside the subnet frame.
+
+Supported icons: Azure App Service, Azure Application Gateway, Azure Web Application Firewall policy, Azure Virtual Network, Azure Private Endpoint, Azure SQL Database, Azure Key Vault, Azure Storage account, Azure Front Door, Azure Monitor. Unsupported or unidentifiable services are never guessed as a different service's icon — they're drawn as labeled generic shapes instead. You can also select an element and change its "Shape" property to "Azure service", or pick a different service from the dropdown. The icon's aspect ratio and colors can't be edited directly.
+
+SVG / PNG exports include the official icons; JSON exports include the editable element data, including the service ID. Mermaid can't represent icons, so it exports generic nodes labeled with the official service name. Existing diagrams are never modified by this feature.
+
+### Shortcuts
+
+| Key | Action |
 |---|---|
-| V / H / P / E | 選択 / パン / ペン / 消しゴム |
-| R / O / D / A / T | 四角 / 楕円 / ひし形 / 矢印 / テキスト |
-| Space + ドラッグ、中ボタン | パン |
-| Ctrl + ホイール | ズーム |
-| Shift + 1 | 全体を表示 |
-| Ctrl+Z / Ctrl+Shift+Z | 元に戻す / やり直す |
-| Delete | 選択要素を削除 |
-| ダブルクリック | ラベル編集 |
+| V / H / P / E | Select / Pan / Pen / Eraser |
+| R / O / D / A / T | Rectangle / Ellipse / Diamond / Arrow / Text |
+| Space + drag, middle button | Pan |
+| Ctrl + wheel | Zoom |
+| Shift + 1 | Zoom to fit |
+| Ctrl+Z / Ctrl+Shift+Z | Undo / Redo |
+| Delete | Delete selected element(s) |
+| Double-click | Edit label |
 
-## アーキテクチャ
+## Architecture
 
 ```mermaid
 flowchart LR
-    B["Browser (Canvas iframe)"] -- "POST /api/refine (PNG + 未反映ストローク)" --> E["extension.mjs (Node)"]
-    E -- "SSE /api/events (図の更新)" --> B
-    E -- "session.send (プロンプト + PNG)" --> A["Copilot エージェント"]
+    B["Browser (Canvas iframe)"] -- "POST /api/refine (PNG + unfinished strokes)" --> E["extension.mjs (Node)"]
+    E -- "SSE /api/events (diagram updates)" --> B
+    E -- "session.send (prompt + PNG)" --> A["Copilot agent"]
     A -- "invoke_canvas_action (apply_changes …)" --> E
 ```
 
-| パス | 役割 |
+| Path | Role |
 |---|---|
-| `extension.mjs` | `createCanvas` による Canvas 登録、エージェント向け action、仕上げ依頼の送信 |
-| `lib/server.mjs` | 127.0.0.1 限定の HTTP サーバー（静的配信、`/api/*`、SSE）。トークン認証・Host 検証・CSP 付き |
-| `lib/store.mjs` | ドキュメントの永続化（`~/.copilot/shape-data/<documentId>.json`） |
-| `lib/prompt.mjs` | エージェント向け仕上げプロンプトの生成 |
-| `core/` | ブラウザとNode で共有するモデル（検証・差分適用・矢印バインド）、幾何計算、SVG 描画、Mermaid 変換 |
-| `public/` | フロントエンド（`index.html`, `app.js`, `style.css`） |
+| `extension.mjs` | Registers the Canvas via `createCanvas`, defines agent-facing actions, sends refine requests |
+| `lib/server.mjs` | Loopback-only HTTP server (static files, `/api/*`, SSE); token auth, Host validation, CSP |
+| `lib/store.mjs` | Document persistence (`~/.copilot/shape-data/<documentId>.json`) |
+| `lib/prompt.mjs` | Builds the agent-facing refine prompt |
+| `core/` | Model shared between browser and Node (validation, diffing, arrow binding), geometry, SVG rendering, Mermaid conversion |
+| `public/` | Frontend (`index.html`, `app.js`, `style.css`) |
 
-### Canvas actions（エージェント向け）
+### Canvas actions (for agents)
 
-| action | 内容 |
+| Action | Description |
 |---|---|
-| `get_diagram` | 要素と未反映ストローク（bbox・簡略化した点列付き）を返す |
-| `apply_changes` | add / update / delete の差分適用と、反映済みストロークの消去（`consumeStrokes`） |
-| `replace_diagram` | 図の全置換 |
-| `clear_sketch` | 未反映ストロークの削除 |
-| `export` | SVG / JSON / Mermaid を返す（任意でダウンロードフォルダーへ保存） |
+| `get_diagram` | Returns elements and unfinished strokes (with bbox and a simplified point list) |
+| `apply_changes` | Applies an add/update/delete diff, and clears consumed strokes (`consumeStrokes`) |
+| `replace_diagram` | Replaces the whole diagram |
+| `clear_sketch` | Clears unfinished strokes |
+| `export` | Returns SVG / JSON / Mermaid (optionally saved to the Downloads folder) |
 
-要素の種類は `rect | rounded | ellipse | diamond | cylinder | text | frame | azure-service | arrow` です。`azure-service` には対応する `service` ID を指定します。矢印は `from` / `to` で要素 id にバインドします。
+Element types are `rect | rounded | ellipse | diamond | cylinder | text | frame | azure-service | arrow`. An `azure-service` element takes a matching `service` ID. Arrows bind to element ids via `from` / `to`.
 
-公式アイコンは [Azure Architecture Center の配布物](https://learn.microsoft.com/azure/architecture/icons/) から選定し、`core/azure-icons.mjs` に収録しています。このファイル中のアイコンは **Microsoft の利用条件**（アーキテクチャ図、研修資料、ドキュメントでの利用に限定）に従い、リポジトリの MIT ライセンスの対象ではありません。アイコンを切り抜く・反転する・回転する・変形する用途や、自社製品のアイコンとしての利用は避けてください。元の公式 ZIP からカタログを更新するときは `python scripts/update-azure-icons.py <Azure_Public_Service_Icons_V24.zip>` を実行します。実行時のネットワーク接続は不要です。
+Official icons were sourced from the [Azure Architecture Center icon set](https://learn.microsoft.com/azure/architecture/icons/) and are bundled in `core/azure-icons.mjs`. The icons in that file are governed by **Microsoft's terms of use** (restricted to architecture diagrams, training materials, and documentation) and are **not** covered by this repository's MIT license. Don't crop, flip, rotate, or otherwise alter the icons, and don't use them as your own product's icon. To refresh the catalog from an official ZIP, run `python scripts/update-azure-icons.py <Azure_Public_Service_Icons_V24.zip>` (no network access required).
 
-## 開発
+## Development
 
 ```powershell
 npm test   # node --test "test/*.test.mjs"
 ```
 
-Node 20 以降を想定しています。
+Requires Node 20 or later.
 
-## ライセンス
+## License
 
 [MIT](LICENSE)
